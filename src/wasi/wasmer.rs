@@ -93,7 +93,46 @@ s! {
         pub msg_controllen: socklen_t,
         pub msg_flags: c_int,
     }
+
+    // firebox wasi TUI bring-up: termios + winsize ABI for the wasm32-wasmer-wasi
+    // (target_vendor="wasmer") triple. Layout matches the wasix-libc fork's
+    // bits/termios.h (struct termios) and bits/alltypes.h (struct winsize) — these
+    // are NOT musl/Linux values, they are the wasix-libc cloudlibc scheme, the same
+    // source-of-truth posture as the socket surface above. wasix-libc's libc.a
+    // exports tcgetattr/tcsetattr/cfmakeraw/tcgetwinsize (verified via `nm`), so
+    // crossterm's libc termios path links cleanly and routes through the firebox
+    // TtyBridge at runtime. RETIRE-WHEN: upstream rust-lang/libc adds a wasix
+    // termios arm, OR the firebox libc fork is replaced by a probed-const generator.
+    pub struct termios {
+        pub c_iflag: crate::tcflag_t,
+        pub c_oflag: crate::tcflag_t,
+        pub c_cflag: crate::tcflag_t,
+        pub c_lflag: crate::tcflag_t,
+        pub c_line: crate::cc_t,
+        pub c_cc: [crate::cc_t; 32],
+        pub __c_ispeed: crate::speed_t,
+        pub __c_ospeed: crate::speed_t,
+    }
+
+    pub struct winsize {
+        pub ws_row: c_ushort,
+        pub ws_col: c_ushort,
+        pub ws_xpixel: c_ushort,
+        pub ws_ypixel: c_ushort,
+    }
 }
+
+// termios base types (wasix-libc: cc_t=unsigned char, speed_t/tcflag_t=unsigned int).
+pub type cc_t = c_uchar;
+pub type speed_t = c_uint;
+pub type tcflag_t = c_uint;
+
+// NCCS, TCSANOW, and TIOCGWINSZ from the wasix-libc fork's headers.
+pub const NCCS: usize = 32;
+pub const TCSANOW: c_int = 0;
+pub const TCSADRAIN: c_int = 1;
+pub const TCSAFLUSH: c_int = 2;
+pub const TIOCGWINSZ: c_int = 0x101;
 
 pub const AF_UNSPEC: c_int = 0;
 pub const AF_INET: c_int = 1;
@@ -230,4 +269,17 @@ extern "C" {
     ) -> c_int;
     pub fn freeaddrinfo(p: *mut addrinfo);
     pub fn gai_strerror(ecode: c_int) -> *const c_char;
+
+    // firebox wasi TUI bring-up: termios entry points exported by wasix-libc's
+    // libc.a (the firebox TtyBridge backs them at runtime — see the struct block
+    // above for the ABI + retirement note).
+    pub fn tcgetattr(fd: c_int, termios: *mut crate::termios) -> c_int;
+    pub fn tcsetattr(
+        fd: c_int,
+        optional_actions: c_int,
+        termios: *const crate::termios,
+    ) -> c_int;
+    pub fn cfmakeraw(termios: *mut crate::termios);
+    pub fn tcgetwinsize(fd: c_int, size: *mut crate::winsize) -> c_int;
+    pub fn tcsetwinsize(fd: c_int, size: *const crate::winsize) -> c_int;
 }
