@@ -1096,3 +1096,15 @@ cfg_if! {
         pub use self::p2::*;
     }
 }
+
+// Firebox: wasm32-wasmer-wasi (target_vendor = "wasmer") provides POSIX
+// sockets via wasix-libc's cloudlibc layer. Constants and struct layouts
+// are NEITHER Linux/musl values NOR wasi-p2-spec values — they come from
+// wasix-libc's own scheme. Source of truth is the C preprocessor probe
+// against the firebox-wasix-libc sysroot. See `wasi/wasmer.rs`.
+cfg_if! {
+    if #[cfg(target_vendor = "wasmer")] {
+        mod wasmer;
+        pub use self::wasmer::*;
+    }
+}
