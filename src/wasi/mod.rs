@@ -229,8 +229,23 @@ pub const POSIX_FADV_RANDOM: c_int = 2;
 pub const POSIX_FADV_SEQUENTIAL: c_int = 1;
 pub const POSIX_FADV_WILLNEED: c_int = 3;
 pub const AT_FDCWD: c_int = -2;
-pub const AT_EACCESS: c_int = 0x0;
-pub const AT_SYMLINK_NOFOLLOW: c_int = 0x1;
+// firebox#DW4 — these MUST equal wasix-libc's `__header_fcntl.h`, which is what
+// the libc these calls land in actually tests. firebox#Q2Y moved two of them to
+// their Linux values there (AT_SYMLINK_NOFOLLOW 0x1 -> 0x100, AT_EACCESS 0x0 ->
+// 0x200) and never touched this second, independent header namespace, so every
+// Rust guest kept baking the pre-#Q2Y bits:
+//   * AT_SYMLINK_NOFOLLOW as 0x1 fails LOUDLY — cloudlibc's fstatat/utimensat/
+//     fchmodat/fchownat reject `flag & ~AT_SYMLINK_NOFOLLOW` with EINVAL, so
+//     `symlink_metadata()` on a current libc would return EINVAL, not an lstat;
+//   * AT_EACCESS as 0x0 fails SILENTLY, which is the one that admits no
+//     deferral — `faccessat(.., 0)` is a legal call meaning "use the REAL uid",
+//     so the effective-uid check quietly became a real-uid check with no errno
+//     and no diagnostic, and it is byte-invisible because `| 0` folds away.
+// AT_SYMLINK_FOLLOW and AT_REMOVEDIR keep wasix-libc's values (0x2 / 0x4, not
+// Linux's 0x400 / 0x200) because coherence with the linked libc is the contract
+// here; changing those is the fork header's call, not this crate's.
+pub const AT_EACCESS: c_int = 0x200;
+pub const AT_SYMLINK_NOFOLLOW: c_int = 0x100;
 pub const AT_SYMLINK_FOLLOW: c_int = 0x2;
 pub const AT_REMOVEDIR: c_int = 0x4;
 pub const UTIME_OMIT: c_long = 0xfffffffe;
