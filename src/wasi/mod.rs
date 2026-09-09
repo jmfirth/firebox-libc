@@ -273,12 +273,35 @@ pub const S_IRUSR: mode_t = 0o0400;
 pub const S_ISVTX: mode_t = 0o1000;
 pub const S_ISGID: mode_t = 0o2000;
 pub const S_ISUID: mode_t = 0o4000;
+// firebox#4TY: Linux's `DT_*` values, matching wasix-libc's
+// `libc-bottom-half/headers/public/__header_dirent.h` after firebox#4TY put
+// that table on `uapi/linux/fs.h`.
+//
+// This block used to hold 0/1/2/3/4/7 — a copy of wasix-libc's OLD table,
+// where `DT_*` were spelled as `__WASI_FILETYPE_*`. It was already the odd one
+// out in this very file: every `S_IF*` constant twenty lines above is Linux's
+// (`S_IFSOCK 0o140000`, `S_IFMT 0o170000`), so `d_type` was the only place
+// this crate mirrored WASI's space instead of Linux's.
+//
+// It is the same second half that firebox#87F had to ship in lockstep for
+// errno, and the same failure this fork already paid once in `5f745e6`
+// (firebox#DW4, "the wasi AT_* flags never followed #Q2Y out of the C
+// header"): a hand-written Rust table that does not follow the C header it
+// claims to describe. It MUST ship in the same release as the wasix-libc
+// renumbering — a Rust guest comparing `libc::DT_DIR` against a `d_type` byte
+// produced by a renumbered libc silently matches nothing.
+//
+// `DT_FIFO`, `DT_SOCK` and `DT_WHT` were absent entirely and are added; the C
+// header defines all three, so their absence broke code that names them.
 pub const DT_UNKNOWN: u8 = 0;
-pub const DT_BLK: u8 = 1;
+pub const DT_FIFO: u8 = 1;
 pub const DT_CHR: u8 = 2;
-pub const DT_DIR: u8 = 3;
-pub const DT_REG: u8 = 4;
-pub const DT_LNK: u8 = 7;
+pub const DT_DIR: u8 = 4;
+pub const DT_BLK: u8 = 6;
+pub const DT_REG: u8 = 8;
+pub const DT_LNK: u8 = 10;
+pub const DT_SOCK: u8 = 12;
+pub const DT_WHT: u8 = 14;
 pub const FIONREAD: c_int = 1;
 pub const FIONBIO: c_int = 2;
 pub const F_OK: c_int = 0;
