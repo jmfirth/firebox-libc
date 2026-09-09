@@ -245,24 +245,54 @@ pub const F_GETFL: c_int = 3;
 pub const F_SETFL: c_int = 4;
 pub const FD_CLOEXEC: c_int = 1;
 pub const FD_SETSIZE: size_t = 1024;
-pub const O_APPEND: c_int = 0x0001;
-pub const O_DSYNC: c_int = 0x0002;
-pub const O_NONBLOCK: c_int = 0x0004;
-pub const O_RSYNC: c_int = 0x0008;
-pub const O_SYNC: c_int = 0x0010;
-pub const O_CREAT: c_int = 0x0001 << 12;
-pub const O_DIRECTORY: c_int = 0x0002 << 12;
-pub const O_EXCL: c_int = 0x0004 << 12;
-pub const O_TRUNC: c_int = 0x0008 << 12;
-pub const O_NOFOLLOW: c_int = 0x01000000;
-pub const O_EXEC: c_int = 0x02000000;
-pub const O_RDONLY: c_int = 0x04000000;
-pub const O_SEARCH: c_int = 0x08000000;
-pub const O_WRONLY: c_int = 0x10000000;
-pub const O_CLOEXEC: c_int = 0x0;
-pub const O_RDWR: c_int = O_WRONLY | O_RDONLY;
-pub const O_ACCMODE: c_int = O_EXEC | O_RDWR | O_SEARCH;
-pub const O_NOCTTY: c_int = 0x0;
+// firebox#VPB: this is the `0.2.186` mirror. It is a THIRD copy of the same
+// table — `firebox-patches` (0.2.174) got this in firebox#VP9/#4TY, and
+// `wasix-org/libc @ wasix-0.2.169`, which `firebox-rust`'s `std` compiles
+// against, is the other. All three must ship in the SAME release.
+// firebox#87F: Linux's `O_*` values, matching wasix-libc's
+// `libc-bottom-half/headers/public/__header_fcntl.h` after firebox#87F put
+// that header on Linux uapi `asm-generic/fcntl.h`.
+//
+// This block held the WASI *wire encoding* rather than a flag word: the names
+// WERE the encoding (`O_APPEND == __WASI_FDFLAGS_APPEND`, `O_CREAT ==
+// __WASI_OFLAGS_CREAT << 12`, `O_CLOEXEC == __WASI_FDFLAGSEXT_CLOEXEC << 30`)
+// and the access mode sat in three invented high bits. Two of the eighteen
+// were not merely renumbered but *absent as behaviour*: `O_CLOEXEC` and
+// `O_NOCTTY` were `0x0`, so `libc::open(.., O_CLOEXEC)` from Rust asked for
+// nothing at all and got nothing, silently, before any of this landed.
+//
+// ⛔ LOCKSTEP with `jmfirth/wasix-libc @ 51a7838`, and the failure is
+// fail-open, not an errno: new `O_WRONLY` is 1 and new `O_RDWR` is 2, which
+// are exactly the old `O_APPEND` and `O_DSYNC`. A crate compiled against this
+// table's OLD values against a NEW libc turns a write-open into an append —
+// open, write and close all succeed with the bytes in the wrong place.
+//
+// Rust `std` does not read these: `sys/fs/wasix.rs` passes `wasi::OFLAGS_*`
+// straight to `path_open`. The blast radius is `libc::open`/`fcntl` callers.
+//
+// `O_ACCMODE` is `0o3 | O_SEARCH` and `O_RDWR` is a literal `0o2` because the
+// old spellings (`O_WRONLY | O_RDONLY`, `O_EXEC | O_RDWR | O_SEARCH`) were
+// arithmetic that only reproduced the right answer in the old numbering.
+// `src/wasi/wasmer.rs` defines no `O_*`, so `wasm32-wasmer-wasi` inherits
+// this table verbatim.
+pub const O_APPEND: c_int = 0o2000;
+pub const O_DSYNC: c_int = 0o10000;
+pub const O_NONBLOCK: c_int = 0o4000;
+pub const O_RSYNC: c_int = 0o4010000;
+pub const O_SYNC: c_int = 0o4010000;
+pub const O_CREAT: c_int = 0o100;
+pub const O_DIRECTORY: c_int = 0o200000;
+pub const O_EXCL: c_int = 0o200;
+pub const O_TRUNC: c_int = 0o1000;
+pub const O_NOFOLLOW: c_int = 0o400000;
+pub const O_EXEC: c_int = 0o10000000;
+pub const O_RDONLY: c_int = 0o0;
+pub const O_SEARCH: c_int = 0o10000000;
+pub const O_WRONLY: c_int = 0o1;
+pub const O_CLOEXEC: c_int = 0o2000000;
+pub const O_RDWR: c_int = 0o2;
+pub const O_ACCMODE: c_int = 0o3 | O_SEARCH;
+pub const O_NOCTTY: c_int = 0o400;
 pub const POSIX_FADV_DONTNEED: c_int = 4;
 pub const POSIX_FADV_NOREUSE: c_int = 5;
 pub const POSIX_FADV_NORMAL: c_int = 0;
@@ -314,14 +344,39 @@ pub const S_IRUSR: mode_t = 0o0400;
 pub const S_ISVTX: mode_t = 0o1000;
 pub const S_ISGID: mode_t = 0o2000;
 pub const S_ISUID: mode_t = 0o4000;
+// firebox#VPB: this is the `0.2.186` mirror. It is a THIRD copy of the same
+// table — `firebox-patches` (0.2.174) got this in firebox#VP9/#4TY, and
+// `wasix-org/libc @ wasix-0.2.169`, which `firebox-rust`'s `std` compiles
+// against, is the other. All three must ship in the SAME release.
+// firebox#4TY: Linux's `DT_*` values, matching wasix-libc's
+// `libc-bottom-half/headers/public/__header_dirent.h` after firebox#4TY put
+// that table on `uapi/linux/fs.h`.
+//
+// This block used to hold 0/1/2/3/4/7 — a copy of wasix-libc's OLD table,
+// where `DT_*` were spelled as `__WASI_FILETYPE_*`. It was already the odd one
+// out in this very file: every `S_IF*` constant twenty lines above is Linux's
+// (`S_IFSOCK 0o140000`, `S_IFMT 0o170000`), so `d_type` was the only place
+// this crate mirrored WASI's space instead of Linux's.
+//
+// It is the same second half that firebox#87F had to ship in lockstep for
+// errno, and the same failure this fork already paid once in `5f745e6`
+// (firebox#DW4, "the wasi AT_* flags never followed #Q2Y out of the C
+// header"): a hand-written Rust table that does not follow the C header it
+// claims to describe. It MUST ship in the same release as the wasix-libc
+// renumbering — a Rust guest comparing `libc::DT_DIR` against a `d_type` byte
+// produced by a renumbered libc silently matches nothing.
+//
+// `DT_FIFO`, `DT_SOCK` and `DT_WHT` were absent entirely and are added; the C
+// header defines all three, so their absence broke code that names them.
 pub const DT_UNKNOWN: u8 = 0;
-pub const DT_BLK: u8 = 1;
+pub const DT_FIFO: u8 = 1;
 pub const DT_CHR: u8 = 2;
-pub const DT_DIR: u8 = 3;
-pub const DT_REG: u8 = 4;
-pub const DT_FIFO: u8 = 6;
-pub const DT_LNK: u8 = 7;
-pub const DT_SOCK: u8 = 20;
+pub const DT_DIR: u8 = 4;
+pub const DT_BLK: u8 = 6;
+pub const DT_REG: u8 = 8;
+pub const DT_LNK: u8 = 10;
+pub const DT_SOCK: u8 = 12;
+pub const DT_WHT: u8 = 14;
 pub const FIONREAD: c_int = 1;
 pub const FIONBIO: c_int = 2;
 pub const F_OK: c_int = 0;
@@ -336,82 +391,109 @@ pub const POLLNVAL: c_short = 0x4000;
 pub const POLLRDNORM: c_short = 0x1;
 pub const POLLWRNORM: c_short = 0x2;
 
-pub const E2BIG: c_int = 1;
-pub const EACCES: c_int = 2;
-pub const EADDRINUSE: c_int = 3;
-pub const EADDRNOTAVAIL: c_int = 4;
-pub const EAFNOSUPPORT: c_int = 5;
-pub const EAGAIN: c_int = 6;
-pub const EALREADY: c_int = 7;
-pub const EBADF: c_int = 8;
-pub const EBADMSG: c_int = 9;
-pub const EBUSY: c_int = 10;
-pub const ECANCELED: c_int = 11;
-pub const ECHILD: c_int = 12;
-pub const ECONNABORTED: c_int = 13;
-pub const ECONNREFUSED: c_int = 14;
-pub const ECONNRESET: c_int = 15;
-pub const EDEADLK: c_int = 16;
-pub const EDESTADDRREQ: c_int = 17;
-pub const EDOM: c_int = 18;
-pub const EDQUOT: c_int = 19;
-pub const EEXIST: c_int = 20;
-pub const EFAULT: c_int = 21;
-pub const EFBIG: c_int = 22;
-pub const EHOSTUNREACH: c_int = 23;
-pub const EIDRM: c_int = 24;
-pub const EILSEQ: c_int = 25;
-pub const EINPROGRESS: c_int = 26;
-pub const EINTR: c_int = 27;
-pub const EINVAL: c_int = 28;
-pub const EIO: c_int = 29;
-pub const EISCONN: c_int = 30;
-pub const EISDIR: c_int = 31;
-pub const ELOOP: c_int = 32;
-pub const EMFILE: c_int = 33;
-pub const EMLINK: c_int = 34;
-pub const EMSGSIZE: c_int = 35;
-pub const EMULTIHOP: c_int = 36;
-pub const ENAMETOOLONG: c_int = 37;
-pub const ENETDOWN: c_int = 38;
-pub const ENETRESET: c_int = 39;
-pub const ENETUNREACH: c_int = 40;
-pub const ENFILE: c_int = 41;
-pub const ENOBUFS: c_int = 42;
-pub const ENODEV: c_int = 43;
-pub const ENOENT: c_int = 44;
-pub const ENOEXEC: c_int = 45;
-pub const ENOLCK: c_int = 46;
-pub const ENOLINK: c_int = 47;
-pub const ENOMEM: c_int = 48;
-pub const ENOMSG: c_int = 49;
-pub const ENOPROTOOPT: c_int = 50;
-pub const ENOSPC: c_int = 51;
-pub const ENOSYS: c_int = 52;
-pub const ENOTCONN: c_int = 53;
-pub const ENOTDIR: c_int = 54;
-pub const ENOTEMPTY: c_int = 55;
-pub const ENOTRECOVERABLE: c_int = 56;
-pub const ENOTSOCK: c_int = 57;
-pub const ENOTSUP: c_int = 58;
-pub const ENOTTY: c_int = 59;
-pub const ENXIO: c_int = 60;
-pub const EOVERFLOW: c_int = 61;
-pub const EOWNERDEAD: c_int = 62;
-pub const EPERM: c_int = 63;
-pub const EPIPE: c_int = 64;
-pub const EPROTO: c_int = 65;
-pub const EPROTONOSUPPORT: c_int = 66;
-pub const EPROTOTYPE: c_int = 67;
-pub const ERANGE: c_int = 68;
-pub const EROFS: c_int = 69;
-pub const ESPIPE: c_int = 70;
-pub const ESRCH: c_int = 71;
-pub const ESTALE: c_int = 72;
-pub const ETIMEDOUT: c_int = 73;
-pub const ETXTBSY: c_int = 74;
-pub const EXDEV: c_int = 75;
-pub const ENOTCAPABLE: c_int = 76;
+// firebox#VPB: this is the `0.2.186` mirror. It is a THIRD copy of the same
+// table — `firebox-patches` (0.2.174) got this in firebox#VP9/#4TY, and
+// `wasix-org/libc @ wasix-0.2.169`, which `firebox-rust`'s `std` compiles
+// against, is the other. All three must ship in the SAME release.
+// firebox#87F: Linux's `errno` values, matching wasix-libc's
+// `libc-bottom-half/headers/public/__errno_values.h` after firebox#87F put
+// that header on `libc-top-half/musl/arch/generic/bits/errno.h`, the values
+// x86-64 and aarch64 agree on.
+//
+// All 78 names in this block moved; not one of the old WASI-invented numbers
+// coincidentally equalled Linux's. `ENOENT` was 44 where Linux says 2,
+// `EINVAL` 28 where Linux says 22, `EPERM` 63 where Linux says 1.
+//
+// ⛔ LOCKSTEP with `jmfirth/wasix-libc @ bb63269`, which sits beneath the
+// `O_*` flip above — there is no shelf where only one of the two is true.
+// Unlike `O_*`, Rust `std` DOES read these: `sys/pal/wasix/mod.rs`'s
+// `decode_error_kind` maps a raw errno onto `io::ErrorKind`, so a stale table
+// here misreports every `io::ErrorKind` a guest sees, not just the errors a
+// crate inspects by number.
+//
+// The C header carries 138 names; this block carries 78. The other 60
+// (`ENOTBLK`, `ETIME`, `ESHUTDOWN`, `EDEADLOCK`, …) were absent before this
+// change and remain absent — naming one is a compile error, which is an
+// honest failure rather than a wrong number, and adding them is a separate
+// change. `src/wasi/wasmer.rs` and `src/wasi/p2.rs` define none of these
+// (only `EAI_SYSTEM`), so `wasm32-wasmer-wasi` and `wasm32-wasip2` inherit
+// this table verbatim.
+pub const E2BIG: c_int = 7;
+pub const EACCES: c_int = 13;
+pub const EADDRINUSE: c_int = 98;
+pub const EADDRNOTAVAIL: c_int = 99;
+pub const EAFNOSUPPORT: c_int = 97;
+pub const EAGAIN: c_int = 11;
+pub const EALREADY: c_int = 114;
+pub const EBADF: c_int = 9;
+pub const EBADMSG: c_int = 74;
+pub const EBUSY: c_int = 16;
+pub const ECANCELED: c_int = 125;
+pub const ECHILD: c_int = 10;
+pub const ECONNABORTED: c_int = 103;
+pub const ECONNREFUSED: c_int = 111;
+pub const ECONNRESET: c_int = 104;
+pub const EDEADLK: c_int = 35;
+pub const EDESTADDRREQ: c_int = 89;
+pub const EDOM: c_int = 33;
+pub const EDQUOT: c_int = 122;
+pub const EEXIST: c_int = 17;
+pub const EFAULT: c_int = 14;
+pub const EFBIG: c_int = 27;
+pub const EHOSTUNREACH: c_int = 113;
+pub const EIDRM: c_int = 43;
+pub const EILSEQ: c_int = 84;
+pub const EINPROGRESS: c_int = 115;
+pub const EINTR: c_int = 4;
+pub const EINVAL: c_int = 22;
+pub const EIO: c_int = 5;
+pub const EISCONN: c_int = 106;
+pub const EISDIR: c_int = 21;
+pub const ELOOP: c_int = 40;
+pub const EMFILE: c_int = 24;
+pub const EMLINK: c_int = 31;
+pub const EMSGSIZE: c_int = 90;
+pub const EMULTIHOP: c_int = 72;
+pub const ENAMETOOLONG: c_int = 36;
+pub const ENETDOWN: c_int = 100;
+pub const ENETRESET: c_int = 102;
+pub const ENETUNREACH: c_int = 101;
+pub const ENFILE: c_int = 23;
+pub const ENOBUFS: c_int = 105;
+pub const ENODEV: c_int = 19;
+pub const ENOENT: c_int = 2;
+pub const ENOEXEC: c_int = 8;
+pub const ENOLCK: c_int = 37;
+pub const ENOLINK: c_int = 67;
+pub const ENOMEM: c_int = 12;
+pub const ENOMSG: c_int = 42;
+pub const ENOPROTOOPT: c_int = 92;
+pub const ENOSPC: c_int = 28;
+pub const ENOSYS: c_int = 38;
+pub const ENOTCONN: c_int = 107;
+pub const ENOTDIR: c_int = 20;
+pub const ENOTEMPTY: c_int = 39;
+pub const ENOTRECOVERABLE: c_int = 131;
+pub const ENOTSOCK: c_int = 88;
+pub const ENOTSUP: c_int = 95;
+pub const ENOTTY: c_int = 25;
+pub const ENXIO: c_int = 6;
+pub const EOVERFLOW: c_int = 75;
+pub const EOWNERDEAD: c_int = 130;
+pub const EPERM: c_int = 1;
+pub const EPIPE: c_int = 32;
+pub const EPROTO: c_int = 71;
+pub const EPROTONOSUPPORT: c_int = 93;
+pub const EPROTOTYPE: c_int = 91;
+pub const ERANGE: c_int = 34;
+pub const EROFS: c_int = 30;
+pub const ESPIPE: c_int = 29;
+pub const ESRCH: c_int = 3;
+pub const ESTALE: c_int = 116;
+pub const ETIMEDOUT: c_int = 110;
+pub const ETXTBSY: c_int = 26;
+pub const EXDEV: c_int = 18;
+pub const ENOTCAPABLE: c_int = 134;
 pub const EOPNOTSUPP: c_int = ENOTSUP;
 pub const EWOULDBLOCK: c_int = EAGAIN;
 
