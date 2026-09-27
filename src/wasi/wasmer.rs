@@ -205,8 +205,7 @@ pub const MSG_EOR: c_int = 0x0080;
 pub const MSG_WAITALL: c_int = 0x0100;
 pub const MSG_NOSIGNAL: c_int = 0x4000;
 
-pub const F_DUPFD: c_int = 5;
-pub const F_DUPFD_CLOEXEC: c_int = 6;
+// firebox#4CY: F_DUPFD / F_DUPFD_CLOEXEC moved to mod.rs at the header values.
 
 pub const EAI_SYSTEM: c_int = -11;
 

@@ -33,6 +33,24 @@ pub type wchar_t = i32;
 pub type nl_item = c_int;
 pub type __wasi_rights_t = u64;
 pub type locale_t = *mut __locale_struct;
+
+// firebox#4CY: `<locale.h>` categories and masks, as wasix-libc (musl) defines
+// them. `setlocale`/`newlocale` were already declared below with no category
+// to pass them.
+pub const LC_CTYPE: c_int = 0;
+pub const LC_NUMERIC: c_int = 1;
+pub const LC_TIME: c_int = 2;
+pub const LC_COLLATE: c_int = 3;
+pub const LC_MONETARY: c_int = 4;
+pub const LC_MESSAGES: c_int = 5;
+pub const LC_ALL: c_int = 6;
+pub const LC_CTYPE_MASK: c_int = 1 << LC_CTYPE;
+pub const LC_NUMERIC_MASK: c_int = 1 << LC_NUMERIC;
+pub const LC_TIME_MASK: c_int = 1 << LC_TIME;
+pub const LC_COLLATE_MASK: c_int = 1 << LC_COLLATE;
+pub const LC_MONETARY_MASK: c_int = 1 << LC_MONETARY;
+pub const LC_MESSAGES_MASK: c_int = 1 << LC_MESSAGES;
+pub const LC_ALL_MASK: c_int = 0x7fffffff;
 pub type pthread_t = *mut c_void;
 pub type pthread_once_t = c_int;
 pub type pthread_key_t = c_uint;
@@ -243,6 +261,13 @@ pub const F_GETFD: c_int = 1;
 pub const F_SETFD: c_int = 2;
 pub const F_GETFL: c_int = 3;
 pub const F_SETFL: c_int = 4;
+// firebox#4CY: the wasix-libc header values (`__header_fcntl.h`). These lived in
+// `wasmer.rs` as 5/6, which the post-#87F header renumbered to F_GETLK/F_SETLK:
+// `fcntl(fd, F_DUPFD_CLOEXEC, n)` entered the lock branch and va_arg'd an int
+// as a `struct flock *`. One definition here, for every wasi target this crate
+// builds against wasix-libc.
+pub const F_DUPFD: c_int = 0;
+pub const F_DUPFD_CLOEXEC: c_int = 1030;
 pub const FD_CLOEXEC: c_int = 1;
 pub const FD_SETSIZE: size_t = 1024;
 // firebox#VPB: this is the `0.2.186` mirror. It is a THIRD copy of the same
@@ -976,6 +1001,9 @@ extern "C" {
     pub fn recv(socket: c_int, buf: *mut c_void, len: size_t, flags: c_int) -> ssize_t;
     pub fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: c_int) -> c_int;
     pub fn setlocale(category: c_int, locale: *const c_char) -> *mut c_char;
+    // firebox#4CY: wasix-libc `<unistd.h>`; musl reads LOGNAME.
+    pub fn getlogin() -> *mut c_char;
+    pub fn getlogin_r(buf: *mut c_char, bufsize: size_t) -> c_int;
     pub fn localeconv() -> *mut lconv;
 
     pub fn readlink(path: *const c_char, buf: *mut c_char, bufsz: size_t) -> ssize_t;
