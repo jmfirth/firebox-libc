@@ -231,3 +231,13 @@ extern "C" {
     pub fn freeaddrinfo(p: *mut addrinfo);
     pub fn gai_strerror(ecode: c_int) -> *const c_char;
 }
+
+// BSD flock ABI from wasix-libc's sys/file.h; provided by the WASIX runtime.
+pub const LOCK_SH: c_int = 1;
+pub const LOCK_EX: c_int = 2;
+pub const LOCK_NB: c_int = 4;
+pub const LOCK_UN: c_int = 8;
+
+extern "C" {
+    pub fn flock(fd: c_int, operation: c_int) -> c_int;
+}
