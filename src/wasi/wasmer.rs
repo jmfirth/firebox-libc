@@ -282,4 +282,10 @@ extern "C" {
     pub fn cfmakeraw(termios: *mut crate::termios);
     pub fn tcgetwinsize(fd: c_int, size: *mut crate::winsize) -> c_int;
     pub fn tcsetwinsize(fd: c_int, size: *const crate::winsize) -> c_int;
+    pub fn flock(fd: c_int, operation: c_int) -> c_int;
 }
+
+pub const LOCK_SH: c_int = 1;
+pub const LOCK_EX: c_int = 2;
+pub const LOCK_NB: c_int = 4;
+pub const LOCK_UN: c_int = 8;

@@ -300,7 +300,7 @@ pub const POSIX_FADV_NORMAL: c_int = 0;
 pub const POSIX_FADV_RANDOM: c_int = 2;
 pub const POSIX_FADV_SEQUENTIAL: c_int = 1;
 pub const POSIX_FADV_WILLNEED: c_int = 3;
-pub const AT_FDCWD: c_int = -2;
+pub const AT_FDCWD: c_int = -100;
 // firebox#DW4 — these MUST equal wasix-libc's `__header_fcntl.h`, which is what
 // the libc these calls land in actually tests. firebox#Q2Y moved two of them to
 // their Linux values there (AT_SYMLINK_NOFOLLOW 0x1 -> 0x100, AT_EACCESS 0x0 ->
@@ -318,10 +318,10 @@ pub const AT_FDCWD: c_int = -2;
 // here; changing those is the fork header's call, not this crate's.
 pub const AT_EACCESS: c_int = 0x200;
 pub const AT_SYMLINK_NOFOLLOW: c_int = 0x100;
-pub const AT_SYMLINK_FOLLOW: c_int = 0x2;
-pub const AT_REMOVEDIR: c_int = 0x4;
-pub const UTIME_OMIT: c_long = 0xfffffffe;
-pub const UTIME_NOW: c_long = 0xffffffff;
+pub const AT_SYMLINK_FOLLOW: c_int = 0x400;
+pub const AT_REMOVEDIR: c_int = 0x200;
+pub const UTIME_OMIT: c_long = 0x3ffffffe;
+pub const UTIME_NOW: c_long = 0x3fffffff;
 pub const S_IFIFO: mode_t = 0o1_0000;
 pub const S_IFCHR: mode_t = 0o2_0000;
 pub const S_IFBLK: mode_t = 0o6_0000;
