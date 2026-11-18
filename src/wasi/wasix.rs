@@ -25,7 +25,6 @@ pub const F_DUPFD: c_int = 5;
 pub const F_DUPFD_CLOEXEC: c_int = 6;
 
 // musl include/unistd.h
-pub const _SC_NPROCESSORS_ONLN: c_int = 84;
 
 extern "C" {
     pub fn getppid() -> crate::pid_t;
