@@ -238,10 +238,8 @@ s! {
 
     #[repr(C)]
     pub struct sigset_t {
-        #[cfg(target_pointer_width = "32")]
-        __val: [u32; 2],
-        #[cfg(target_pointer_width = "64")]
-        __val: [u64; 1],
+        // __typedef_sigset_t.h uses two unsigned long slots on both widths.
+        __val: [crate::c_ulong; 2],
     }
 
     #[repr(C)]
@@ -282,13 +280,14 @@ s! {
     }
 
     pub struct posix_spawnattr_t {
-        __flags: crate::c_short,
+        __flags: crate::c_int,
         __pgrp: crate::pid_t,
         __sd: crate::sigset_t,
         __ss: crate::sigset_t,
         __prio: crate::c_int,
         __policy: crate::c_int,
-        __pad: [crate::c_int; 16],
+        __fn: *mut crate::c_void,
+        __pad: [u8; 64 - core::mem::size_of::<*mut crate::c_void>()],
     }
 
     pub struct termios {
